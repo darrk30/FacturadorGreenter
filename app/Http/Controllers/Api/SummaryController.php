@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Service\SunatService;
 use Greenter\Report\XmlUtils;
 use Illuminate\Http\Request;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 class SummaryController extends Controller
 {
@@ -39,8 +38,8 @@ class SummaryController extends Controller
         $result = $see->send($summary);
         $xmlCrudo = $see->getFactory()->getLastXml();
         
-        $response['hash'] = (new XmlUtils())->getHashSign($xmlCrudo); // Hash desde el crudo
-        $response['xml'] = base64_encode($xmlCrudo); // XML devuelto en Base64 para no romper el JSON
+        $response['hash'] = (new XmlUtils())->getHashSign($xmlCrudo);
+        $response['xml'] = base64_encode($xmlCrudo);
         $response['success'] = $result->isSuccess();
 
         if ($result->isSuccess()) {
@@ -62,22 +61,13 @@ class SummaryController extends Controller
             'company.ruc' => 'required',
             'ticket' => 'required|string',
         ]);
-
-        // 🟢 1. Obtenemos la empresa desde el API Key Middleware
         $company = $request->auth_company;
-
-        // 🟢 2. Validación de seguridad
         if ($company->ruc !== $request->input('company.ruc')) {
             return response()->json(['error' => 'El RUC no coincide con el API Key proporcionado.'], 403);
         }
-
         $sunat = new SunatService();
         $see = $sunat->getSee($company);
-        
-        // Consulta de estado a SUNAT
         $result = $see->getStatus($request->ticket);
-        
-        // Reutilizamos la función de tu SunatService
         $response = $sunat->sunatResponse($result);
         $statusCode = $response['success'] ? 200 : 400;
         

@@ -21,12 +21,11 @@ class InvoiceController extends Controller
             'details.*' => 'required|array',
         ]);
 
-        $data = $request->all(); // Aquí está el JSON intacto para el getInvoice()
+        $data = $request->all(); // Aquí está el JSON intacto
 
-        // 1. Obtenemos el Modelo Company desde el middleware (API Key)
+        // 1. Obtenemos el Modelo Company desde el middleware
         $company = $request->auth_company;
 
-        // 2. Validación de seguridad (Recomendado)
         if ($company->ruc !== $data['company']['ruc']) {
             return response()->json(['error' => 'El RUC no coincide con el API Key proporcionado.'], 403);
         }
@@ -38,24 +37,45 @@ class InvoiceController extends Controller
         $see = $sunat->getSee($company);
         $invoice = $sunat->getInvoice($data);
 
-        $result = $see->send($invoice);
+        // ====================================================
+        // 🔥 LÓGICA DE ENVÍO CONDICIONAL
+        // ====================================================
+        // Leemos la instrucción directa que viene del POS (por defecto true por seguridad)
+        $enviarASunat = $data['enviar_sunat'] ?? true;
 
-        $xmlCrudo = $see->getFactory()->getLastXml();
+        $response = [];
 
+        if ($enviarASunat) {
+            // 🌐 FLUJO NORMAL: Enviar a SUNAT
+            $result = $see->send($invoice);
+            $xmlCrudo = $see->getFactory()->getLastXml();
+            $response['sunatResponse'] = $sunat->sunatResponse($result);
+        } else {
+            $xmlCrudo = $see->getXmlSigned($invoice);
+            $response['sunatResponse'] = [
+                'success' => true,
+                'cdrZip' => null,
+                'cdrResponse' => [
+                    'code' => 0,
+                    'description' => 'Comprobante generado y firmado localmente. Pendiente de envío a SUNAT.',
+                    'notes' => []
+                ]
+            ];
+        }
         $response['hash'] = (new XmlUtils())->getHashSign($xmlCrudo);
         $response['xml'] = base64_encode($xmlCrudo);
-        $response['sunatResponse'] = $sunat->sunatResponse($result);
         $response['total_letras'] = $data['legends'][0]['value'];
 
         $fechaEmision = (new \DateTime($data['fechaEmision']))->format('Y-m-d');
 
+        // Generación del código QR según estándar de SUNAT
         $qrString = implode('|', [
             $company->ruc,
             $data['tipoDoc'],
             $data['serie'],
             $data['correlativo'],
-            number_format($data['mtoIGV'], 2, '.', ''),
-            number_format($data['mtoImpVenta'], 2, '.', ''),
+            number_format($data['mtoIGV'] ?? 0, 2, '.', ''),
+            number_format($data['mtoImpVenta'] ?? 0, 2, '.', ''),
             $fechaEmision,
             $data['client']['tipoDoc'],
             $data['client']['numDoc'],
@@ -63,6 +83,30 @@ class InvoiceController extends Controller
         ]) . '|';
 
         $response['qr_data'] = $qrString;
+
+        return response()->json($response, 200);
+    }
+
+    // Añade este método en tu InvoiceController.php de la API
+    public function sendXml(Request $request)
+    {
+        $request->validate([
+            'xml_base64' => 'required|string',
+            'filename'   => 'required|string',
+        ]);
+
+        $company = $request->auth_company;
+        $sunat = new SunatService();
+        $see = $sunat->getSee($company);
+
+        $xmlCrudo = base64_decode($request->xml_base64);
+        $filename = $request->filename;
+
+        // Le decimos a Greenter: "Toma este XML que ya está listo y envíalo"
+        // Greenter usa la clase Invoice para Boletas y Facturas.
+        $result = $see->sendXml(\Greenter\Model\Sale\Invoice::class, $filename, $xmlCrudo);
+
+        $response['sunatResponse'] = $sunat->sunatResponse($result);
 
         return response()->json($response, 200);
     }

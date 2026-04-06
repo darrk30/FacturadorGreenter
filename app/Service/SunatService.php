@@ -13,6 +13,8 @@ use Greenter\Model\Sale\Legend;
 use Greenter\Model\Sale\SaleDetail;
 use Greenter\Model\Summary\Summary;
 use Greenter\Model\Summary\SummaryDetail;
+use Greenter\Model\Voided\Voided;
+use Greenter\Model\Voided\VoidedDetail;
 use Greenter\Report\HtmlReport;
 use Greenter\Report\Resolver\DefaultTemplateResolver;
 use Greenter\See;
@@ -70,7 +72,7 @@ class SunatService
     public function getSummary($data, $companyModel)
     {
         $summary = new Summary();
-        
+
         $summary->setFecGeneracion(new \DateTime($data['fechaGeneracion']))
             ->setFecResumen(new \DateTime($data['fechaResumen']))
             ->setCorrelativo($data['correlativo'])
@@ -96,7 +98,7 @@ class SunatService
         $green_details = [];
         foreach ($details as $detail) {
             $item = new SummaryDetail();
-            
+
             $item->setTipoDoc($detail['tipoDoc'])
                 ->setSerieNro($detail['serieNro'])
                 ->setEstado($detail['estado'])
@@ -211,18 +213,18 @@ class SunatService
         $report = new HtmlReport();
         $resolver = new DefaultTemplateResolver();
         $report->setTemplate($resolver->getTemplate($invoice));
-        
+
         // 🟢 CORRECCIÓN: Tomamos la empresa directamente del Request 
         // (inyectada por el ApiKeyMiddleware). Si no existe ahí, la buscamos solo por RUC.
         $company = request()->auth_company ?? ModelsCompany::where('ruc', $invoice->getCompany()->getRuc())->firstOrFail();
 
         $params = [
             'system' => [
-                'logo' => Storage::get($company->logo_path), 
-                'hash' => 'qqnr2dN4p/HmaEA/CJuVGo7dv5g=', 
+                'logo' => Storage::get($company->logo_path),
+                'hash' => 'qqnr2dN4p/HmaEA/CJuVGo7dv5g=',
             ],
             'user' => [
-                'header'     => 'Telf: <b>(01) 123375</b>', 
+                'header'     => 'Telf: <b>(01) 123375</b>',
                 'extras'     => [
                     ['name' => 'CONDICION DE PAGO', 'value' => 'Efectivo'],
                     ['name' => 'VENDEDOR', 'value' => 'SISTEMA POS'],
@@ -231,5 +233,59 @@ class SunatService
             ]
         ];
         return $report->render($invoice, $params);
+    }
+
+    public function getVoided($data, $companyModel)
+    {
+        $voided = new Voided();
+        $voided->setCorrelativo($data['correlativo'])
+            ->setFecGeneracion(new \DateTime($data['fechaGeneracion']))
+            ->setFecComunicacion(new \DateTime($data['fechaComunicacion']))
+            ->setCompany($this->getCompany([
+                'ruc' => $companyModel->ruc,
+                'razonSocial' => $companyModel->razon_social,
+                'nombreComercial' => $companyModel->nombre_comercial,
+                'address' => [
+                    'ubigeo' => $companyModel->ubigeo,
+                    'direccion' => $companyModel->direccion,
+                    'departamento' => $companyModel->departamento,
+                    'provincia' => $companyModel->provincia,
+                    'distrito' => $companyModel->distrito,
+                ]
+            ]))
+            ->setDetails($this->getVoidedDetails($data['details']));
+
+        return $voided;
+    }
+
+    public function getVoidedDetails($details)
+    {
+        $green_details = [];
+        foreach ($details as $detail) {
+            $item = new VoidedDetail();
+            $item->setTipoDoc($detail['tipoDoc'])
+                ->setSerie($detail['serie'])
+                ->setCorrelativo($detail['correlativo'])
+                ->setDesMotivoBaja($detail['motivo']);
+
+            $green_details[] = $item;
+        }
+        return $green_details;
+    }
+
+    // Método para procesar la respuesta de Ticket (Bajas y Resúmenes)
+    public function sunatTicketResponse($result)
+    {
+        $response['success'] = $result->isSuccess();
+        if (!$response['success']) {
+            $response['error'] = [
+                'code' => $result->getError()->getCode(),
+                'message' => $result->getError()->getMessage(),
+            ];
+            return $response;
+        }
+
+        $response['ticket'] = $result->getTicket();
+        return $response;
     }
 }
