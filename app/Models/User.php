@@ -8,6 +8,7 @@ use App\Models\Company;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 
 class User extends Authenticatable implements JWTSubject
@@ -24,6 +25,7 @@ class User extends Authenticatable implements JWTSubject
         'name',
         'email',
         'password',
+        'code',
     ];
 
     /**
@@ -47,6 +49,22 @@ class User extends Authenticatable implements JWTSubject
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // 🟢 Usamos 'created' para que el ID ya esté disponible
+        static::created(function (User $user) {
+            if (empty($user->code)) {
+                $fecha = now()->format('Ymd');
+                $hora = now()->format('His');
+                $id = $user->id;
+                $random = Str::upper(Str::random(3));
+                $codigoFinal = "{$fecha}-{$hora}-{$id}-{$random}";
+                $user->code = $codigoFinal;
+                $user->save();
+            }
+        });
     }
 
     public function getJWTIdentifier()

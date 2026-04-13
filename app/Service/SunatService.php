@@ -10,6 +10,7 @@ use Greenter\Model\Company\Company;
 use Greenter\Model\Sale\FormaPagos\FormaPagoContado;
 use Greenter\Model\Sale\Invoice;
 use Greenter\Model\Sale\Legend;
+use Greenter\Model\Sale\Note;
 use Greenter\Model\Sale\SaleDetail;
 use Greenter\Model\Summary\Summary;
 use Greenter\Model\Summary\SummaryDetail;
@@ -69,6 +70,43 @@ class SunatService
         return $invoice;
     }
 
+    public function getNote($data)
+    {
+        return (new Note)
+            ->setUblVersion($data['ublVersion'] ?? '2.1')
+            ->setTipoDoc($data['tipoDoc'] ?? null)
+            ->setSerie($data['serie'] ?? null)
+            ->setCorrelativo($data['correlativo'] ?? null)
+            ->setFechaEmision(new DateTime($data['fechaEmision']) ?? null)
+            ->setTipDocAfectado($data['tipDocAfectado'] ?? null)
+            ->setNumDocfectado($data['numDocAfectado'] ?? null)
+            ->setCodMotivo($data['codMotivo'] ?? null)
+            ->setDesMotivo($data['desMotivo'] ?? null)
+            ->setTipoMoneda($data['tipoMoneda'] ?? null)
+            ->setCompany($this->getCompany($data['company']))
+            ->setClient($this->getClient($data['client']))
+            //MtoOper
+            ->setMtoOperGravadas($data['mtoOperGravadas'])
+            ->setMtoOperExoneradas($data['mtoOperExoneradas'])
+            ->setMtoOperInafectas($data['mtoOperInafectas'])
+            ->setMtoOperExoneradas($data['mtoOperExportacion'])
+            ->setMtoOperGratuitas($data['mtoOperGratuitas'])
+            //Inpuestos
+            ->setMtoIGV($data['mtoIGV'])
+            ->setMtoIGVGratuitas($data['mtoIGVGratuitas'])
+            ->setIcbper($data['icbper'])
+            ->setTotalImpuestos($data['totalImpuestos'])
+            //Totales
+            ->setValorVenta($data['valorVenta'])
+            ->setSubTotal($data['subTotal'])
+            ->setRedondeo($data['redondeo'])
+            ->setMtoImpVenta($data['mtoImpVenta'])
+            //Productos
+            ->setDetails($this->getDetails($data['details']))
+            //Leyendas
+            ->setLegends($this->getLegends($data['legends']));
+    }
+
     public function getSummary($data, $companyModel)
     {
         $summary = new Summary();
@@ -124,7 +162,9 @@ class SunatService
             ->setRuc($company['ruc'] ?? null)
             ->setRazonSocial($company['razonSocial'] ?? null)
             ->setNombreComercial($company['nombreComercial'] ?? null)
-            ->setAddress($this->getAddress($company['address']));
+            ->setEmail($company['email'] ?? null)
+            ->setTelephone($company['telefono'] ?? null)
+            ->setAddress($this->getAddress($company['address'] ?? []));
         return $company;
     }
 
@@ -141,12 +181,18 @@ class SunatService
         return $address;
     }
 
-    public function getClient($client)
+    public function getClient($clientData)
     {
         $client = (new Client())
-            ->setTipoDoc($client['tipoDoc'] ?? null)
-            ->setNumDoc($client['numDoc'] ?? null)
-            ->setRznSocial($client['rznSocial'] ?? null);
+            ->setTipoDoc($clientData['tipoDoc'] ?? null)
+            ->setNumDoc($clientData['numDoc'] ?? null)
+            ->setRznSocial($clientData['razonSocial'] ?? null)
+            ->setEmail($clientData['email'] ?? null)
+            ->setTelephone($clientData['telefono'] ?? null);
+        if (!empty($clientData['address'])) {
+            $client->setAddress($this->getAddress($clientData['address']));
+        }
+
         return $client;
     }
 

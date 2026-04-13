@@ -8,8 +8,13 @@ class Company extends Model
 {
     protected $fillable = [
         'razon_social',
+        'nombre_comercial',
         'ruc',
         'direccion',
+        'departamento',
+        'distrito',
+        'provincia',
+        'ubigeo',
         'telefono',
         'email',
         'logo_path',
@@ -21,6 +26,7 @@ class Company extends Model
         'client_secret',
         'user_id',
         'api_token',
+        'status',
     ];
 
     public function user()

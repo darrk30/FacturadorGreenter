@@ -14,9 +14,14 @@ return new class extends Migration
         Schema::create('companies', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->string('razon_social');
+            $table->string('razon_social'); 
+            $table->string('nombre_comercial')->nullable(); 
             $table->string('ruc', 11);
             $table->string('direccion');
+            $table->string('departamento')->nullable();
+            $table->string('distrito')->nullable();
+            $table->string('provincia')->nullable();
+            $table->string('ubigeo')->nullable();
             $table->string('telefono')->nullable();
             $table->string('email')->nullable();
             $table->string('logo_path')->nullable();
@@ -27,6 +32,7 @@ return new class extends Migration
             $table->string('client_id')->nullable();
             $table->string('client_secret')->nullable();
             $table->string('api_token', 80)->unique()->nullable();
+            $table->string('status')->default('activo');
             $table->timestamps();
         });
     }
