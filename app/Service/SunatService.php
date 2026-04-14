@@ -7,6 +7,7 @@ use DateTime;
 use Greenter\Model\Client\Client;
 use Greenter\Model\Company\Address;
 use Greenter\Model\Company\Company;
+use Greenter\Model\Sale\Charge;
 use Greenter\Model\Sale\FormaPagos\FormaPagoContado;
 use Greenter\Model\Sale\Invoice;
 use Greenter\Model\Sale\Legend;
@@ -67,7 +68,22 @@ class SunatService
             ->setDetails($this->getDetails($data['details']))
             //Leyendas
             ->setLegends($this->getLegends($data['legends']));
+        if (!empty($data['descuentos'])) {
+            $invoice->setDescuentos($this->getDescuentos($data['descuentos']));
+        }
         return $invoice;
+    }
+
+    private function getDescuentos(array $descuentos): array
+    {
+        return array_map(
+            fn($d) => (new Charge())
+                ->setCodTipo($d['codTipo'])
+                ->setMontoBase($d['montoBase'])
+                ->setFactor($d['factor'])
+                ->setMonto($d['monto']),
+            $descuentos
+        );
     }
 
     public function getNote($data)
