@@ -153,40 +153,39 @@ class CompanyController extends Controller
 
     public function updateViaApi(Request $request)
     {
-        // 1. Extraemos el token que el restaurante envió en los headers (Bearer Token)
         $token = $request->bearerToken();
-
-        // 2. Buscamos la empresa usando ese token
         $company = Company::where('api_token', $token)->firstOrFail();
 
         $data = $request->validate([
-            'razon_social'  => 'nullable|string',
-            'ruc'           => 'nullable|string',
-            'sol_user'      => 'nullable|string',
-            'sol_pass'      => 'nullable|string',
-            'cert'          => 'nullable|file',
+            'razon_social'     => 'nullable|string',
+            'nombre_comercial' => 'nullable|string',
+            'ruc'              => 'nullable|string',
+            'direccion'        => 'nullable|string',
+            'departamento'     => 'nullable|string',
+            'distrito'         => 'nullable|string',
+            'provincia'        => 'nullable|string',
+            'ubigeo'           => 'nullable|string|size:6',
+            'telefono'         => 'nullable|string',
+            'email'            => 'nullable|email',
+            'sol_user'         => 'nullable|string',
+            'sol_pass'         => 'nullable|string',
+            'cert'             => 'nullable|file',
         ]);
 
-        // 3. Lógica de reemplazo exclusivo de certificado
         if ($request->hasFile('cert')) {
-            // Verificamos si ya había un certificado antes y si existe físicamente
             if ($company->cert_path && Storage::exists($company->cert_path)) {
-                // Lo eliminamos para no ocupar espacio muerto en el servidor
                 Storage::delete($company->cert_path);
             }
-
-            // Guardamos el nuevo
             $data['cert_path'] = $request->file('cert')->store('certs');
         }
 
-        // Encriptamos la clave por seguridad
         if (isset($data['sol_pass'])) {
             $data['sol_pass'] = encrypt($data['sol_pass']);
         }
 
         $company->update($data);
 
-        return response()->json(['message' => 'Empresa actualizada vía API exitosamente y certificado renovado']);
+        return response()->json(['message' => 'Datos de empresa y ubicación actualizados correctamente']);
     }
 
     public function downloadCertificate(Request $request, $company)
