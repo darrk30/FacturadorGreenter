@@ -18,10 +18,13 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        User::factory()->create([
-            'name' => 'Kevin Rivera Rojas',
-            'email' => 'kriverarojas44@gmail.com',
-            'password' => Hash::make('AdminKevin2026!*'),
-        ]);
+        User::updateOrCreate(
+            ['email' => 'kriverarojas44@gmail.com'], // Busca por email
+            [
+                'name' => 'Kevin Rivera Rojas',
+                'password' => Hash::make('AdminKevin2026!*'),
+                // Otros campos necesarios...
+            ]
+        );
     }
 }
